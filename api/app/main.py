@@ -30,7 +30,8 @@ if settings.CORS_ORIGINS:
     )
 
 
-@app.get("/health", include_in_schema=False)
+@app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)  # platform probes (Render's HEAD /)
+@app.api_route("/health", methods=["GET", "HEAD"], include_in_schema=False)
 def health():
     """Liveness: the process is up (no DB call, so it never flaps on DB blips)."""
     return {"ok": True}

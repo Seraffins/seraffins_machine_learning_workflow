@@ -103,7 +103,7 @@ class HardeningMiddleware(BaseHTTPMiddleware):
         for k, v in SECURITY_HEADERS.items():
             resp.headers.setdefault(k, v)
         resp.headers["X-Request-ID"] = rid
-        if request.url.path != "/health":
+        if request.url.path not in ("/", "/health"):
             # One JSON line per request; Cloud Logging parses "severity" automatically.
             print(json.dumps({
                 "severity": "WARNING" if resp.status_code >= 400 else "INFO",

@@ -11,6 +11,8 @@ BODY = {"uid": "user-42", "images": {"whole": IMG.format("w"), "left": IMG.forma
 
 def test_health_and_ready(client):
     assert client.get("/health").json() == {"ok": True}
+    assert client.head("/").status_code == 200
+    assert client.head("/health").status_code == 200
     assert client.get("/ready").json() == {"ok": True}
 
 
