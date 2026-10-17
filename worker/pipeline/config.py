@@ -75,10 +75,11 @@ R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID").strip()
 R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY").strip()
 R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME").strip()
 R2_ENDPOINT = (
-    os.environ.get("R2_ENDPOINT", "").strip()
+    (os.environ.get("R2_ENDPOINT") or "").strip()
     or (f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com" if R2_ACCOUNT_ID else "")
 )
-R2_PUBLIC_URL = os.environ.get("R2_PUBLIC_URL", "").strip()
+R2_PUBLIC_URL = (os.environ.get("R2_PUBLIC_URL") or "").strip()
+
 
 # Optional: POST the finished result to the frontend backend
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
