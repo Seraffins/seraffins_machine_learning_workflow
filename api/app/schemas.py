@@ -21,8 +21,15 @@ def _check_url(slot: str, url: str):
     u = urlparse(url)
     if u.scheme != "https":
         raise ValueError(f"images.{slot}: url must be https")
-    if settings.ALLOWED_IMAGE_HOSTS and u.hostname not in settings.ALLOWED_IMAGE_HOSTS:
-        raise ValueError(f"images.{slot}: host not allowed: {u.hostname}")
+    if settings.ALLOWED_IMAGE_HOSTS:
+        host = u.hostname or ""
+        is_allowed = (
+            host in settings.ALLOWED_IMAGE_HOSTS
+            or host.endswith(".r2.cloudflarestorage.com")
+            or host.endswith(".r2.dev")
+        )
+        if not is_allowed:
+            raise ValueError(f"images.{slot}: host not allowed: {u.hostname}")
 
 
 class ImagesIn(BaseModel):
