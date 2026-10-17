@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -12,7 +13,7 @@ from .. import dispatch
 from ..config import settings
 from ..db import get_db
 from ..models import Job, Sighting, Turtle
-from ..schemas import AcceptedOut, IdentifyIn, JobOut
+from ..schemas import IdentifyIn, IdentifyOut, JobOut
 from ..security import limiter, require_api_key
 
 router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
@@ -27,8 +28,29 @@ def job_out(j: Job) -> dict:
             "error": j.error, "created_at": j.created_at, "updated_at": j.updated_at}
 
 
-def accepted(j: Job) -> dict:
-    return {"job_id": str(j.id), "status": j.status, "poll": f"/v1/jobs/{j.id}"}
+def finish(j: Job, db: Session):
+    """Wait for the worker, then answer with the result in the same response."""
+    if j.status not in ("completed", "failed") and j.modal_call_id:
+        try:
+            dispatch.wait_identify(j.modal_call_id, settings.IDENTIFY_WAIT_SECONDS)
+        except TimeoutError:
+            pass
+        except Exception:
+            log.exception("worker failed for job %s", j.id)
+        db.refresh(j)
+
+    base = {"job_id": str(j.id), "uid": j.user_id}
+    if j.status == "completed":
+        r = j.result or {}
+        sp, ident = r.get("species") or {}, r.get("identification") or {}
+        return {"success": True, **base,
+                "species": sp.get("label"), "species_confidence": sp.get("confidence"),
+                "turtle_id": ident.get("turtle_id"), "status": ident.get("status"),
+                "confidence": ident.get("confidence")}
+    if j.status == "failed":
+        return JSONResponse({"success": False, **base, "error": "processing failed"}, 502)
+    # Still running after the wait (or the worker died): the job keeps its id for GET /v1/jobs/{id}.
+    return JSONResponse({"success": False, **base, "error": f"still processing, try GET /v1/jobs/{j.id}"}, 504)
 
 
 @router.get("/species")
@@ -36,7 +58,7 @@ def species():
     return {"labels": SPECIES_LABELS}
 
 
-@router.post("/identify", status_code=202, response_model=AcceptedOut)
+@router.post("/identify", response_model=IdentifyOut)
 def identify(
     body: IdentifyIn,
     db: Session = Depends(get_db),
@@ -51,7 +73,7 @@ def identify(
         existing = db.scalar(select(Job).where(Job.user_id == body.uid,
                                                Job.idempotency_key == idempotency_key))
         if existing:
-            return accepted(existing)
+            return finish(existing, db)
 
     job = Job(request=body.model_dump(mode="json"), user_id=body.uid,
               idempotency_key=idempotency_key)
@@ -60,8 +82,8 @@ def identify(
         db.commit()
     except IntegrityError:  # concurrent retry with the same key won the race
         db.rollback()
-        return accepted(db.scalar(select(Job).where(Job.user_id == body.uid,
-                                                    Job.idempotency_key == idempotency_key)))
+        return finish(db.scalar(select(Job).where(Job.user_id == body.uid,
+                                                    Job.idempotency_key == idempotency_key)), db)
 
     try:
         job.modal_call_id = dispatch.start_identify(str(job.id), body.to_pipeline(), body.uid)
@@ -71,7 +93,7 @@ def identify(
         db.commit()
         raise HTTPException(503, "model service unavailable, try again")
     db.commit()
-    return accepted(job)
+    return finish(job, db)
 
 
 @router.get("/jobs/{job_id}", response_model=JobOut)

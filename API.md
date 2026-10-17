@@ -11,14 +11,14 @@ All bodies are JSON.
 
 ```
 1. Frontend uploads the user's photos to its own R2 (as it does today)
-2. POST /v1/identify  { uid, images: { whole, left, right, front, shell, rear } }  -> job_id (202)
-3. Get the result, either:
-     a) poll GET /v1/jobs/{job_id} every 2 s until "completed" / "failed", or
-     b) receive the webhook push (if configured), see "Webhook" below
+2. POST /v1/identify  { uid, images: { whole, left, right, front, shell, rear } }
+   -> waits for the models, then returns the result in the same response (200)
 ```
 
-Processing is asynchronous. A warm run takes a few seconds. The first run after an idle period
-can take 1–2 minutes (GPU cold start). Show a progress state, and poll for up to ~3 minutes.
+A warm run takes a few seconds. The first run after an idle period can take 1–2 minutes (GPU
+cold start), so **set your HTTP client timeout to at least 5 minutes** and show a progress state.
+If processing takes longer than 4 minutes you get `504` with the `job_id`; fetch the full result
+later with `GET /v1/jobs/{job_id}`.
 
 **Image links:** https only, from the agreed R2 host(s). Presigned links must stay valid for at
 least 30 minutes. Allowed formats: JPEG, PNG, WebP (convert HEIC on the device).
@@ -63,10 +63,33 @@ Optional header **`Idempotency-Key: <your submission id>`**. If a request is ret
 double tap), sending the same key for the same `uid` returns the original job instead of running
 the models twice. Recommended.
 
-Response:
+Response `200` (success):
 
 ```json
-{ "job_id": "3b1e...", "status": "queued", "poll": "/v1/jobs/3b1e..." }
+{
+  "success": true,
+  "job_id": "3b1e...",
+  "uid": "user-42",
+  "species": "green_turtle",
+  "species_confidence": 0.94,
+  "turtle_id": "GT-000042",
+  "status": "matched",
+  "confidence": 0.91,
+  "error": null
+}
+```
+
+- `species`: one of the `species.label` values below.
+- `turtle_id`, `status`, `confidence`: the individual identification (`status` values are listed
+  under `identification.status` below). `turtle_id` and `confidence` are `null` for `skipped` and
+  `insufficient_views`.
+- For per-photo details (which photo was rejected and why), call `GET /v1/jobs/{job_id}`.
+
+Failure responses:
+
+```json
+502 { "success": false, "job_id": "3b1e...", "uid": "user-42", "error": "processing failed" }
+504 { "success": false, "job_id": "3b1e...", "uid": "user-42", "error": "still processing, try GET /v1/jobs/3b1e..." }
 ```
 
 ## 2. List a user's submissions
@@ -200,7 +223,9 @@ Do not call the webhook from the browser: it must be a server endpoint, because 
 | 422 | Invalid body (missing `uid`, no images, unknown slot, non-https or disallowed host). `detail` says which field |
 | 429 | Rate limit: more than 10 submissions per minute for one `uid`. Wait `Retry-After` seconds |
 | 500 | Unexpected error. Body has a `request_id`; send it to us |
+| 502 | Processing failed (`success: false`). Ask the user to try again |
 | 503 | Model service unreachable, retry later (with the same `Idempotency-Key`) |
+| 504 | Still processing after 4 minutes (`success: false`). Get the result later with `GET /v1/jobs/{job_id}` |
 
 Every response carries an `X-Request-ID` header. Include it when reporting a problem.
 You may also send your own `X-Request-ID` to trace a request across both systems.

@@ -62,10 +62,16 @@ class IdentifyIn(BaseModel):
         ]
 
 
-class AcceptedOut(BaseModel):
+class IdentifyOut(BaseModel):
+    success: bool
     job_id: str
-    status: str
-    poll: str
+    uid: str
+    species: str | None = None
+    species_confidence: float | None = None
+    turtle_id: str | None = None
+    status: str | None = None              # identification status: matched | new | uncertain | skipped | insufficient_views
+    confidence: float | None = None        # identification confidence
+    error: str | None = None
 
 
 class JobOut(BaseModel):

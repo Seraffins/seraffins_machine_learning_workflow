@@ -65,8 +65,9 @@
           "name": "POST /v1/identify  (STARTS PAID GPU WORK)",
           "description": "Starts a real Modal GPU job. Image URLs must be https and on ALLOWED_IMAGE_HOSTS. Saves job_id into the jobId variable.",
           "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('202 accepted', () => pm.response.to.have.status(202));",
-            "if (pm.response.code === 202) pm.collectionVariables.set('jobId', pm.response.json().job_id);"
+            "pm.test('200 success', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().success).to.eql(true); });",
+            "if (pm.response.json().job_id) pm.collectionVariables.set('jobId', pm.response.json().job_id);",
+            "if (pm.response.json().turtle_id) pm.collectionVariables.set('turtleId', pm.response.json().turtle_id);"
           ] } }],
           "request": {
             "method": "POST",

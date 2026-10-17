@@ -17,5 +17,10 @@ def start_identify(job_id: str, images: list[dict], uid: str) -> str:
     return pipeline().run.spawn(job_id, images, uid).object_id
 
 
+def wait_identify(call_id: str, timeout: float) -> dict:
+    """Block until the worker finishes. Raises TimeoutError if it takes longer than `timeout`."""
+    return modal.FunctionCall.from_id(call_id).get(timeout=timeout)
+
+
 def start_reindex() -> str:
     return pipeline().reindex.spawn().object_id

@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_UID: int = 10            # identify requests per uid per minute
     RATE_LIMIT_PER_KEY: int = 300           # identify requests per API key per minute
     MAX_BODY_BYTES: int = 32_768
+    IDENTIFY_WAIT_SECONDS: int = 240        # POST /v1/identify waits this long for the result (GPU cold start ~1-2 min)
 
     _split = field_validator("API_KEYS", "ADMIN_KEYS", "CORS_ORIGINS", "ALLOWED_IMAGE_HOSTS",
                              mode="before")(_csv)

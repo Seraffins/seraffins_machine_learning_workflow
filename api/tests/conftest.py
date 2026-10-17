@@ -31,6 +31,24 @@ def schema():
     yield
 
 
+RESULT = {"species": {"label": "green_turtle", "confidence": 0.94, "scores": {}},
+          "identification": {"status": "matched", "turtle_id": "GT-000042", "confidence": 0.91,
+                             "is_provisional": False}}
+
+
+def fake_worker(call_id, timeout):
+    """Stands in for the Modal worker: marks the job completed, like run.process does."""
+    import json
+
+    from sqlalchemy import text
+
+    from app.db import engine
+    with engine.begin() as c:
+        c.execute(text("update jobs set status='completed', result=cast(:r as jsonb) where id=:id"),
+                  {"r": json.dumps(RESULT), "id": call_id.removeprefix("fc-")})
+    return RESULT
+
+
 @pytest.fixture()
 def client(monkeypatch):
     from fastapi.testclient import TestClient
@@ -42,7 +60,8 @@ def client(monkeypatch):
     limiter.hits.clear()
     calls = []
     monkeypatch.setattr(dispatch, "start_identify",
-                        lambda job_id, images, uid: calls.append((job_id, images, uid)) or "fc-1")
+                        lambda job_id, images, uid: calls.append((job_id, images, uid)) or f"fc-{job_id}")
+    monkeypatch.setattr(dispatch, "wait_identify", fake_worker)
     monkeypatch.setattr(dispatch, "start_reindex", lambda: "fc-r")
     with TestClient(app) as c:
         c.calls = calls
