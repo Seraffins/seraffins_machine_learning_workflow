@@ -1,0 +1,8 @@
+numpy
+pillow
+opencv-python-headless
+psycopg[binary]
+pgvector
+boto3
+httpx
+pytest
