@@ -1,0 +1,10 @@
+# Build context is the repo root; only api/ goes into the image.
+.git
+.env
+**/.env
+**/.venv
+**/__pycache__
+**/*.pyc
+api/tests
+worker
+*.md

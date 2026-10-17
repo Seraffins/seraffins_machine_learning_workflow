@@ -158,7 +158,7 @@ Only the `turtle-api` service account can read them.
 ```bash
 export TAG=$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M)
 export IMAGE=$REGION-docker.pkg.dev/$PROJECT/turtle/api:$TAG
-gcloud builds submit api --tag $IMAGE
+gcloud builds submit . --tag $IMAGE
 ```
 If this fails with a permissions error, grant the Cloud Build service account
 `roles/artifactregistry.writer` and retry.
@@ -206,7 +206,7 @@ Watch the run with `modal app logs turtle-pipeline`. The very first job download
 ### 3.8 Every later release
 ```bash
 export TAG=$(git rev-parse --short HEAD); export IMAGE=$REGION-docker.pkg.dev/$PROJECT/turtle/api:$TAG
-gcloud builds submit api --tag $IMAGE
+gcloud builds submit . --tag $IMAGE
 gcloud run jobs update turtle-migrate --image $IMAGE && gcloud run jobs execute turtle-migrate --wait
 gcloud run deploy turtle-api --image $IMAGE          # keeps the env vars and secrets set above
 ```

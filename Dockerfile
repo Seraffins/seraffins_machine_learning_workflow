@@ -3,12 +3,12 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /srv
 
-COPY requirements.txt .
+COPY api/requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY alembic.ini .
-COPY migrations ./migrations
-COPY app ./app
+COPY api/alembic.ini .
+COPY api/migrations ./migrations
+COPY api/app ./app
 
 RUN useradd --create-home --uid 10001 appuser
 USER appuser
