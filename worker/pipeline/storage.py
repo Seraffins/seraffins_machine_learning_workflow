@@ -81,13 +81,14 @@ def load_url(url: str) -> Image.Image:
             key = _extract_r2_key(url)
             obj = r2().get_object(Bucket=config.R2_BUCKET_NAME, Key=key)
             return _open(obj["Body"].read())
-        except Exception:
+        except Exception as e:
             # Fall back to standard HTTP GET (in case it is signed or public)
-            pass
+            print(f"[storage.load_url] R2 get_object error for {url}: {e}")
 
     resp = httpx.get(url, timeout=30, follow_redirects=True)
     resp.raise_for_status()
     return _open(resp.content)
+
 
 
 
