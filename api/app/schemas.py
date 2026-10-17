@@ -72,13 +72,12 @@ class IdentifyIn(BaseModel):
 class IdentifyOut(BaseModel):
     success: bool
     job_id: str
-    uid: str
+    uid: str | None = None
     species: str | None = None
     species_confidence: float | None = None
-    turtle_id: str | None = None
-    status: str | None = None              # identification status: matched | new | uncertain | skipped | insufficient_views
-    confidence: float | None = None        # identification confidence
-    error: str | None = None
+    turtle_id: str | None = None       # <--- MUST BE DEFINED HERE
+    status: str | None = None
+    confidence: float | None = None
 
 
 class JobOut(BaseModel):
