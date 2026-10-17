@@ -12,7 +12,7 @@ image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("git", "libgl1", "libglib2.0-0")
     .pip_install(
-        "torch==2.5.1", "torchvision==0.20.1",
+        "torch>=2.6", "torchvision",
         "rfdetr", "open_clip_torch", "transformers", "ultralytics>=8.4",
         "opencv-python-headless", "numpy<2.2", "pillow",
         "psycopg[binary]", "pgvector", "boto3", "httpx",
