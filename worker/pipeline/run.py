@@ -14,6 +14,95 @@ def _log(**kv):
 from .matcher import inliers_to_confidence
 
 
+def process(m, job_id: str, images: list[dict], uid: str | None = None) -> dict:
+    # ... [keep initial image load & detection quality loop] ...
+
+    # ------------------------------------------------------------------
+    # Step 1 & 2: Detection & Quality Checks
+    # ------------------------------------------------------------------
+    if len(usable) < config.MIN_USABLE_IMAGES:
+        species = {"label": config.DATA_DEFICIENT, "confidence": 0.0, "scores": {}}
+        drop_reasons = [img["reason"] for img in per_image if img.get("reason")]
+        
+        if "low_detection_confidence" in drop_reasons:
+            status = "skipped"
+            msg = "No sea turtle detected. Please upload a clear photo of a sea turtle."
+        elif "too_blurry" in drop_reasons or "low_resolution" in drop_reasons:
+            status = "rejected"
+            msg = "Images are too blurry or low quality to extract scute patterns. Please upload sharper photos."
+        else:
+            status = "skipped"
+            msg = "Insufficient usable images provided."
+
+        ident = {"status": status, "reason": msg, "can_retry": True, "turtle_id": None, "confidence": None, "is_provisional": False}
+        _log(step="species", job_id=job_id, usable_images=len(usable), **species)
+        
+        conn = store.connect()
+        try:
+            store.insert_sighting(conn, job_id, None, species["label"], 0.0, status, None)
+            result = {"job_id": job_id, "uid": uid, "species": species, "identification": ident, "images": per_image}
+            conn.commit()
+            store.set_job(conn, job_id, "completed", result=result)
+            return result
+        finally:
+            conn.close()
+
+    # ---- species classification ----
+    label, conf, scores = m.species.aggregate([c for _, _, c in usable])
+    species = {"label": label, "confidence": round(conf, 4), "scores": scores}
+    _log(step="species", job_id=job_id, usable_images=len(usable), **species)
+
+    conn = store.connect()
+    try:
+        # ------------------------------------------------------------------
+        # Step 3: Species Safety Filter
+        # ------------------------------------------------------------------
+        is_sea_turtle = species["label"] in SEA_TURTLE_SPECIES and species["confidence"] >= config.SPECIES_MIN_CONF
+        
+        if not is_sea_turtle:
+            ident = {
+                "status": "no_sea_turtle",
+                "reason": "Image rejected: verified as non-sea turtle species.",
+                "can_retry": False,
+                "turtle_id": None, "confidence": None, "is_provisional": False
+            }
+            store.insert_sighting(conn, job_id, None, species["label"], species["confidence"], "no_sea_turtle", None)
+            result = {"job_id": job_id, "uid": uid, "species": species, "identification": ident, "images": per_image}
+            conn.commit()
+            store.set_job(conn, job_id, "completed", result=result)
+            return result
+
+        # ------------------------------------------------------------------
+        # Step 4: Re-ID Gate
+        # ------------------------------------------------------------------
+        if species["label"] == "green_turtle":
+            ident = _reid(m, conn, job_id, usable, per_image, species)
+            
+            # Catch uncertain matches from _reid and flag for review
+            if ident.get("status") == "uncertain":
+                ident["status"] = "review"
+                ident["reason"] = "Match is uncertain due to viewing angle. Sent to experts for verification."
+                ident["can_retry"] = False
+        else:
+            ident = {"status": "skipped_reid", "turtle_id": None, "confidence": None, "is_provisional": False}
+            store.insert_sighting(conn, job_id, None, species["label"], species["confidence"], "skipped_reid", None)
+
+        result = {
+            "job_id": job_id,
+            "uid": uid,
+            "species": species,
+            "identification": ident,
+            "images": per_image,
+            "model_versions": {"detector": config.DETECTOR_VERSION, "species": config.SPECIES_MODEL_VERSION, "segmenter": config.SEG_MODEL_VERSION, "embedder": config.EMBED_MODEL_VERSION},
+        }
+        conn.commit()
+        store.set_job(conn, job_id, "completed", result=result)
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 def _reid(m, conn, job_id, usable, per_image, species):
     queries = []  # dicts: idx, side, det_key, scute_key, vec, feats
@@ -46,10 +135,17 @@ def _reid(m, conn, job_id, usable, per_image, species):
     _log(step="reid_queries_summary", job_id=job_id, total_usable=len(usable), total_queries=len(queries))
 
     if not queries:
-        store.insert_sighting(conn, job_id, None, species["label"], species["confidence"],
-                              "insufficient_views", None)
-        return {"status": "insufficient_views", "turtle_id": None, "confidence": None,
-                "is_provisional": False}
+            reason = "Could not extract facial scute patterns. Please upload a clearer side-profile photo."
+            store.insert_sighting(conn, job_id, None, species["label"], species["confidence"],
+                                "retry_scute", None)
+            return {
+                "status": "retry_scute", 
+                "turtle_id": None, 
+                "confidence": None,
+                "is_provisional": False,
+                "reason": reason,
+                "can_retry": True
+            }
 
     # ---- retrieve + re-rank ----
     best = defaultdict(dict)

@@ -75,8 +75,10 @@ class IdentifyOut(BaseModel):
     uid: str | None = None
     species: str | None = None
     species_confidence: float | None = None
-    turtle_id: str | None = None       # <--- MUST BE DEFINED HERE
-    status: str | None = None
+    turtle_id: str | None = None
+    status: str | None = None      # "skipped", "rejected", "no_sea_turtle", "retry_scute", "review", "matched", "new"
+    reason: str | None = None      
+    can_retry: bool = False        
     confidence: float | None = None
 
 

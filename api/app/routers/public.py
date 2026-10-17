@@ -43,12 +43,20 @@ def finish(j: Job, db: Session):
     if j.status == "completed":
         r = j.result or {}
         sp, ident = r.get("species") or {}, r.get("identification") or {}
-        return {"success": True, **base,
-                "species": sp.get("label"), "species_confidence": sp.get("confidence"),
-                "turtle_id": ident.get("turtle_id"), "status": ident.get("status"),
-                "confidence": ident.get("confidence")}
+        return {
+            "success": True,
+            **base,
+            "species": sp.get("label"),
+            "species_confidence": sp.get("confidence"),
+            "turtle_id": ident.get("turtle_id"),
+            "status": ident.get("status"),          # "skipped", "rejected", "no_sea_turtle", "retry_scute", "review", "matched", "new"
+            "reason": ident.get("reason"),          # Human-readable error/actionable advice
+            "can_retry": ident.get("can_retry", False), # Boolean flag for frontend UI triggers
+            "confidence": ident.get("confidence"),
+        }
     if j.status == "failed":
         return JSONResponse({"success": False, **base, "error": "processing failed"}, 502)
+    
     # Still running after the wait (or the worker died): the job keeps its id for GET /v1/jobs/{id}.
     return JSONResponse({"success": False, **base, "error": f"still processing, try GET /v1/jobs/{j.id}"}, 504)
 
