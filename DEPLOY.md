@@ -87,9 +87,14 @@ modal secret create turtle-secrets \
   STORAGE_REGION='ap-south-1' \
   STORAGE_BUCKET='turtle-crops' \
   STORAGE_ACCESS_KEY_ID='...' \
-  STORAGE_SECRET_ACCESS_KEY='...'
+  STORAGE_SECRET_ACCESS_KEY='...' \
+  R2_ACCOUNT_ID='2a69e83766cb9fd197beeecbc4e27eac' \
+  R2_ACCESS_KEY_ID='5dbbc0380b8ddabfa07273a2e3744183' \
+  R2_SECRET_ACCESS_KEY='69af9f4084071650e878dfcd5c6cf515ca510208138efb219c4197daf310fd5e' \
+  R2_BUCKET_NAME='totrace'
 ```
 Optional webhook: also add `WEBHOOK_URL=...` and `WEBHOOK_SECRET=...`. To change a value later, re-run with `--force`.
+
 
 ### 2.3 Upload weights
 ```bash

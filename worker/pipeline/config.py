@@ -63,13 +63,25 @@ DATA_DEFICIENT = "data_deficient"
 UNKNOWN = "unknown"
 
 # Crop storage: our own private bucket (Supabase Storage via its S3 API).
-# User photos are NOT stored here; they are downloaded from the frontend's R2 URLs.
+# User photos are downloaded from the frontend's R2 URLs or fetched via R2 S3 API.
 STORAGE_ENDPOINT = os.environ.get("STORAGE_ENDPOINT", "")  # https://<ref>.supabase.co/storage/v1/s3
 STORAGE_REGION = os.environ.get("STORAGE_REGION", "ap-south-1")
 STORAGE_BUCKET = os.environ.get("STORAGE_BUCKET", "turtle-crops")
 CROPS_PREFIX = os.environ.get("CROPS_PREFIX", "crops")
 
+# Cloudflare R2 bucket credentials for direct image access
+R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID").strip()
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID").strip()
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY").strip()
+R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME").strip()
+R2_ENDPOINT = (
+    os.environ.get("R2_ENDPOINT", "").strip()
+    or (f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com" if R2_ACCOUNT_ID else "")
+)
+R2_PUBLIC_URL = os.environ.get("R2_PUBLIC_URL", "").strip()
+
 # Optional: POST the finished result to the frontend backend
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
