@@ -110,3 +110,5 @@ def get_turtle(turtle_id: str, db: Session = Depends(get_db)):
                        "match_status": s.match_status, "match_confidence": s.match_confidence,
                        "created_at": s.created_at} for s in sightings],
     }
+
+

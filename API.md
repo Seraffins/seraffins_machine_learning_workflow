@@ -1,6 +1,6 @@
 # Sea Turtle ID API — Frontend Guide
 
-Base URL: `https://turtle-api-xxxx.a.run.app` (you'll receive the real one)
+Base URL: `https://seraffins-machine-learning-workflow.onrender.com`
 Auth: every `/v1` request needs the header `X-API-Key: <key>`.
 All bodies are JSON.
 
