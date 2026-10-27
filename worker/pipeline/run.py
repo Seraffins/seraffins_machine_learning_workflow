@@ -13,9 +13,35 @@ def _log(**kv):
     print(json.dumps(kv, default=str), flush=True)
 from .matcher import inliers_to_confidence
 
+SEA_TURTLE_SPECIES = set(config.SPECIES.keys())
+
 
 def process(m, job_id: str, images: list[dict], uid: str | None = None) -> dict:
-    # ... [keep initial image load & detection quality loop] ...
+    """m: loaded models (detector, species, segmenter, embedder, matcher)."""
+    per_image, usable = [], []  # usable: (idx, view, det_crop)
+    _log(step="start", job_id=job_id, images=len(images),
+         thresholds={"DET_MIN_CONF": config.DET_MIN_CONF, "MIN_CROP_SIDE": config.MIN_CROP_SIDE,
+                     "BLUR_MIN_VAR": config.BLUR_MIN_VAR, "MIN_USABLE_IMAGES": config.MIN_USABLE_IMAGES,
+                     "SPECIES_MIN_CONF": config.SPECIES_MIN_CONF})
+    for idx, src in enumerate(images):
+        view = src.get("view") or "other"
+        rec = {"index": idx, "slot": src.get("slot"), "view": view, "usable": False, "reason": None, "detection_confidence": 0.0}
+        try:
+            img = storage.load_url(src["url"])
+        except Exception as e:
+            rec["reason"] = "download_failed"
+            _log(step="download", job_id=job_id, slot=rec["slot"], ok=False,
+                 error=f"{type(e).__name__}: {e}"[:300])
+            per_image.append(rec)
+            continue
+        crop, _, conf = m.detector.detect(img)
+        ok, reason, metrics = quality.check(crop, conf)
+        rec.update(usable=ok, reason=reason, **metrics)
+        _log(step="quality", job_id=job_id, slot=rec["slot"], image_size=list(img.size),
+             usable=ok, reason=reason, **metrics)
+        per_image.append(rec)
+        if ok:
+            usable.append((idx, view, crop))
 
     # ------------------------------------------------------------------
     # Step 1 & 2: Detection & Quality Checks

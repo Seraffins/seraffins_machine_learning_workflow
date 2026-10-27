@@ -34,9 +34,11 @@ cache_vol = modal.Volume.from_name("turtle-hf-cache", create_if_missing=True)
     secrets=[modal.Secret.from_name("turtle-secrets")],
     scaledown_window=120,   # keep warm 2 min after last job, then scale to zero
     timeout=900,
+    enable_memory_snapshot=True,
+    experimental_options={"enable_gpu_snapshot": True},
 )
 class Pipeline:
-    @modal.enter()
+    @modal.enter(snap=True)
     def load(self):
         from pipeline import config
         from pipeline.detector import Detector
